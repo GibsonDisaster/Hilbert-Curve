@@ -1,20 +1,31 @@
 module Main where
   import Graphics.Gloss
 
-  type Coord = (Int, Int)
+  type Coord = (Float, Float)
 
-  data Hilbert = First [Coord]
-               | Second [Coord]
-               | Nth [Coord]
+  data Hilbert = First [[Coord]]
+               | Second [Hilbert]
+               | Nth [Hilbert]
                deriving (Show, Eq)
 
-  renderHilbert :: Hilbert -> Picture
-  renderHilbert (First pts) = pics
+  hilbertData :: Hilbert
+  hilbertData = Second [tl, tr, bl, br]
     where
-      pics = translate 0 0 $ color white $ polygon pts
+      tl = First [[(0.0, 0.0), (0.0, 150.0)], [(0.0, 150.0), (150.0, 150.0)], [(150.0, 150.0), (150.0, 0.0)]]
+      tr = First [[(150.0, 0.0), (150.0, 150.0)], [(150.0, 150.0), (300.0, 150.0)], [(300.0, 150.0), (300.0, 0.0)]]
+      bl = First []
+      br = First []
+
+  makeLines :: [Coord] -> Picture
+  makeLines (s:e:r) = color white $ line [s, e]
+
+  renderHilbert :: Hilbert -> Picture
+  renderHilbert (First pts) = Pictures $ pics
+    where
+      pics = map makeLines pts
 
   render :: Picture
-  render = renderHilbert (First [(0, 0), ()])
+  render = Pictures $ renderHilbert (First [[(0.0, 0.0), (0.0, 150.0)], [(0.0, 150.0), (150.0, 150.0)], [(150.0, 150.0), (150.0, 0.0)]]) : renderHilbert (First [[(150.0, 0.0), (150.0, 150.0)], [(150.0, 150.0), (300.0, 150.0)], [(300.0, 150.0), (300.0, 0.0)]]) : []
 
   main :: IO ()
-  main = display (InWindow "Hilbert Curve" (0, 0) (300, 300)) black render
+  main = display (InWindow "Hilbert Curve" (900, 900) (300, 300)) black render
