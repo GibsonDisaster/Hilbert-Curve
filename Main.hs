@@ -1,6 +1,13 @@
 module Main where
   import Graphics.Gloss
 
+  {-
+    TODO:
+      Code to take a Coord and transform it into an 2nd Gen hilbert Curve
+      make function to transform hilbert curve into new curve made of 4 originals
+      connect the lines function
+  -}
+
   type Coord = (Float, Float)
 
   data Hilbert = First [[Coord]]
@@ -13,8 +20,10 @@ module Main where
     where
       tl = First [[(0.0, 0.0), (0.0, 150.0)], [(0.0, 150.0), (150.0, 150.0)], [(150.0, 150.0), (150.0, 0.0)]]
       tr = First [[(150.0, 0.0), (150.0, 150.0)], [(150.0, 150.0), (300.0, 150.0)], [(300.0, 150.0), (300.0, 0.0)]]
-      bl = First []
+      bl = First [[(0.0, (-150.0)), (0.0, 0.0)], [(0.0, 150.0), (150.0, 150.0)], [(150.0, 0.0), (150.0, (-150.0))]]
       br = First []
+
+  rotateHilbert :: Hilbert -> Int -> Hilbert
 
   makeLines :: [Coord] -> Picture
   makeLines (s:e:r) = color white $ line [s, e]
@@ -23,9 +32,10 @@ module Main where
   renderHilbert (First pts) = Pictures $ pics
     where
       pics = map makeLines pts
+  renderHilbert (Second fs) = Pictures $ map renderHilbert fs
 
   render :: Picture
-  render = Pictures $ renderHilbert (First [[(0.0, 0.0), (0.0, 150.0)], [(0.0, 150.0), (150.0, 150.0)], [(150.0, 150.0), (150.0, 0.0)]]) : renderHilbert (First [[(150.0, 0.0), (150.0, 150.0)], [(150.0, 150.0), (300.0, 150.0)], [(300.0, 150.0), (300.0, 0.0)]]) : []
+  render = renderHilbert hilbertData
 
   main :: IO ()
   main = display (InWindow "Hilbert Curve" (900, 900) (300, 300)) black render
