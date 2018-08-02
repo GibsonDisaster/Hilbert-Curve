@@ -1,5 +1,6 @@
 module Main where
   import Graphics.Gloss
+  import qualified Data.Map as M
 
   {-
     TODO:
@@ -10,32 +11,69 @@ module Main where
 
   type Coord = (Float, Float)
 
-  data Hilbert = First [[Coord]]
+  data Hilbert = First [Coord]
                | Second [Hilbert]
                | Nth [Hilbert]
                deriving (Show, Eq)
 
-  hilbertData :: Hilbert
-  hilbertData = Second [tl, tr, bl, br]
+  spacing :: Float
+  spacing = 50.0
+
+  (|+|) :: Coord -> Coord -> Coord
+  (|+|) (x1, y1) (x2, y2) = (x1 + x2, y1 + y2)
+
+  hilbertGenMap :: Int -> M.Map Float Float
+  hilbertGenMap n = M.fromList $ take n (zip [1..] [ 2 ** x | x <- [0, 2..]])
+
+  getNumOfHilberts :: Float -> Float
+  getNumOfHilberts n = case M.lookup n (hilbertGenMap (ceiling n)) of
+                         Nothing -> 0.0
+                         (Just x) -> x
+
+  rotateClockwise :: Hilbert -> Hilbert
+  rotateClockwise (First (a:b:c:d:r)) = First $ [a, d, c, b]
+  rotateClockwise (Second pts) = Second $ map rotateClockwise pts
+  rotateClockwise (Nth pts) = Nth $ map rotateClockwise pts
+
+  rotateCounterClockwise :: Hilbert -> Hilbert
+  rotateCounterClockwise (First (a:b:c:d:r)) = First $ [d, a, b, c]
+  rotateCounterClockwise (Second pts) = Second $ map rotateClockwise pts
+  rotateCounterClockwise (Nth pts) = Nth $ map rotateClockwise pts
+
+  secondGen :: Coord -> Hilbert
+  secondGen (x, y) = Second [rotateClockwise (firstGen (x, y)), firstGen (x, y + spacing), firstGen (x + spacing, y + spacing), rotateCounterClockwise (firstGen (x + spacing, 0.0))]
+
+  firstGen :: Coord -> Hilbert
+  firstGen (x, y) = First [(x, y), (x, y + spacing), (x + spacing, y + spacing), (x + spacing, y)]
+
+  genHilbert :: Int -> Hilbert
+  genHilbert 1 = firstGen (0.0, 0.0)
+  genHilbert n = Nth (replicate 4 (genHilbert (n - 1)))
     where
-      tl = First [[(0.0, 0.0), (0.0, 150.0)], [(0.0, 150.0), (150.0, 150.0)], [(150.0, 150.0), (150.0, 0.0)]]
-      tr = First [[(150.0, 0.0), (150.0, 150.0)], [(150.0, 150.0), (300.0, 150.0)], [(300.0, 150.0), (300.0, 0.0)]]
-      bl = First [[(0.0, (-150.0)), (0.0, 0.0)], [(0.0, 150.0), (150.0, 150.0)], [(150.0, 0.0), (150.0, (-150.0))]]
-      br = First []
+      y = (ceiling (getNumOfHilberts (fromIntegral n :: Float))) `div` 4
 
-  rotateHilbert :: Hilbert -> Int -> Hilbert
+  moveHilbert :: Coord -> Hilbert -> Hilbert
+  moveHilbert (xv, yv) (First pts) = First $ map (\(x, y) -> (x + xv, y + yv)) pts
+  moveHilbert v@(xv, yv) (Second pts) = Second $ map (moveHilbert v) pts
+  moveHilbert v@(xv, yv) (Nth pts) = Nth $ map (moveHilbert v) pts
 
-  makeLines :: [Coord] -> Picture
-  makeLines (s:e:r) = color white $ line [s, e]
+  spaceOutGens :: Hilbert -> Hilbert
+  spaceOutGens (Second pts) = Second $ zipWith moveHilbert [(0,0), (spacing, 0), (spacing, spacing), (0, spacing)] pts
+  spaceOutGens (Nth pts) = Nth $ zipWith moveHilbert [(0,0), (spacing, 0), (spacing, spacing), (0, spacing)] pts
+  spaceOutGens h = h
+
+  spaceOutGens' :: Hilbert -> Hilbert
+  spaceOutGens' (Second pts) = Second $ zipWith moveHilbert [(0,0), (spacing * 2, 0), (spacing * 2, spacing * 2), (0, spacing * 2)] pts
+  spaceOutGens' (Nth pts) = Nth $ zipWith moveHilbert [(0,0), (spacing * 2, 0), (spacing * 2, spacing * 2), (0, spacing * 2)] pts
+  spaceOutGens' h = h
 
   renderHilbert :: Hilbert -> Picture
-  renderHilbert (First pts) = Pictures $ pics
-    where
-      pics = map makeLines pts
-  renderHilbert (Second fs) = Pictures $ map renderHilbert fs
+  renderHilbert (First pts) = color white $ line pts
+  renderHilbert (Second pts) = Pictures $ map renderHilbert pts
+  renderHilbert (Nth pts) = Pictures $ map renderHilbert pts
 
   render :: Picture
-  render = renderHilbert hilbertData
+  render = renderHilbert $ spaceOutGens (genHilbert 3)
 
   main :: IO ()
   main = display (InWindow "Hilbert Curve" (900, 900) (300, 300)) black render
